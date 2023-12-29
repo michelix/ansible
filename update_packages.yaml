@@ -1,0 +1,16 @@
+---
+- hosts: all
+  become: yes
+
+  tasks:
+    - name: Update apt cache and upgrade all packages
+      ansible.builtin.apt:
+        upgrade: 'dist'
+        update_cache: yes
+        cache_valid_time: 3600  # Cache is valid for 1 hour
+      notify: system upgrade performed
+
+  handlers:
+    - name: system upgrade performed
+      debug:
+        msg: "All packages have been upgraded."
