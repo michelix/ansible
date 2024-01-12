@@ -1,0 +1,27 @@
+---
+- name: Security Updates and System Cleanup
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Update the cache of repositories
+      apt:
+        update_cache: yes
+        cache_valid_time: 86400  # Update the cache if it's older than a day
+
+    - name: Upgrade all packages to the latest version
+      apt:
+        upgrade: 'dist'
+        force_apt_get: yes
+
+    - name: Clean up APT cache
+      apt:
+        autoclean: yes
+
+    - name: Remove unused packages and their dependencies
+      apt:
+        autoremove: yes
+
+    - name: Clean up old downloaded archive files
+      apt:
+        clean: yes
