@@ -7,12 +7,14 @@
     - name: Update the cache of repositories
       apt:
         update_cache: yes
-        cache_valid_time: 86400  # Update the cache if it's older than a day
+        cache_valid_time: 86400
+      notify: system upgrade performed
 
     - name: Upgrade all packages to the latest version
       apt:
         upgrade: 'dist'
         force_apt_get: yes
+      notify: system upgrade performed
 
     - name: Clean up APT cache
       apt:
@@ -25,3 +27,8 @@
     - name: Clean up old downloaded archive files
       apt:
         clean: yes
+
+  handlers:
+    - name: system upgrade performed
+      debug:
+        msg: "All packages have been upgraded."
