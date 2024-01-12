@@ -1,0 +1,23 @@
+---
+- name: Disk Space Monitoring
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Check disk space usage
+      command: df -hP
+      register: disk_space
+
+    - name: Display disk space usage
+      debug:
+        msg: "{{ disk_space.stdout_lines }}"
+
+    - name: Check for disk space warning
+      shell: df -hP | grep -vE '^Filesystem|tmpfs|cdrom' | awk '{ if ($5 > 90) print $6 " is " $5 " full." }'
+      register: disk_space_warning
+      ignore_errors: true
+
+    - name: Show warning for high disk space usage
+      debug:
+        msg: "{{ disk_space_warning.stdout_lines }}"
+      when: disk_space_warning.stderr == ""
