@@ -7,17 +7,19 @@
     - name: Check disk space usage
       command: df -hP
       register: disk_space
+      ignore_errors: true
 
     - name: Display disk space usage
       debug:
         msg: "{{ disk_space.stdout_lines }}"
+      when: disk_space is defined and disk_space.stdout_lines is defined
 
     - name: Check for disk space warning
-      shell: df -hP | grep -vE '^Filesystem|tmpfs|cdrom' | awk '{ if ($5 > 90) print $6 " is " $5 " full." }'
+      shell: df -hP | grep -vE '^Filesystem|tmpfs|cdrom' | awk '{ if ($5 + 0 > 90) print $6 " is " $5 " full." }'
       register: disk_space_warning
       ignore_errors: true
 
     - name: Show warning for high disk space usage
       debug:
         msg: "{{ disk_space_warning.stdout_lines }}"
-      when: disk_space_warning.stderr == ""
+      when: disk_space_warning is defined and disk_space_warning.stdout_lines is defined
