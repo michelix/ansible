@@ -1,49 +1,76 @@
 ---
-- hosts: all
+- name: Install and configure SNMP (v2c, community “public”)
+  hosts: all
   become: yes
 
+  vars:
+    snmp_syslocation: "Sitting on the Dock of the Bay"
+    snmp_syscontact:  "Me <me@example.org>"
+    snmp_community:   "public"
+
   tasks:
-    - name: Update apt cache and upgrade all packages
+    - name: Update apt cache and upgrade packages
       ansible.builtin.apt:
-        upgrade: 'dist'
+        upgrade: dist
         update_cache: yes
         cache_valid_time: 3600
       notify: system upgrade performed
 
-    - name: Install snmpd package
+    - name: Install snmpd
       ansible.builtin.apt:
         name: snmpd
         state: present
 
-    - name: Configure snmpd to listen on all interfaces
-      ansible.builtin.lineinfile:
-        path: /etc/snmp/snmpd.conf
-        regexp: '^agentAddress'
-        line: 'agentAddress udp:161'
-        state: present
-        backup: yes
+    # ── Deploy a complete, clean configuration ────────────────────────────────
+    - name: Deploy snmpd.conf
+      ansible.builtin.copy:
+        dest: /etc/snmp/snmpd.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # ==== LibreNMS / generic v2c config ====
+          com2sec readonly  default         {{ snmp_community }}
+          group   MyROGroup v2c             readonly
+          view    all    included  .1       80
+          access  MyROGroup ""      v2c     noauth  exact  all    none none
 
-    - name: Set community string to public (read-only)
-      ansible.builtin.lineinfile:
-        path: /etc/snmp/snmpd.conf
-        regexp: '^com2sec'
-        line: 'com2sec readonly default public'
-        state: present
+          sysLocation  {{ snmp_syslocation }}
+          sysContact   {{ snmp_syscontact }}
 
-    - name: Allow snmpd to start with default args
+          # Listen on all IPv4 + localhost v6
+          agentAddress udp:161,udp6:[::1]:161
+      notify: restart snmpd
+
+    # Debian/Ubuntu start-up options: give snmpd no CLI options except “–f“
+    - name: Set SNMPDOPTS in /etc/default/snmpd
       ansible.builtin.lineinfile:
         path: /etc/default/snmpd
         regexp: '^SNMPDOPTS='
         line: 'SNMPDOPTS="-LS0-6d -f"'
-        state: present
+        create: yes
+      notify: restart snmpd
 
-    - name: Restart snmpd
+    - name: Ensure snmpd is enabled and started
+      ansible.builtin.service:
+        name: snmpd
+        state: started
+        enabled: yes
+
+    # Optional sanity-check: fail play if SNMP won’t answer locally
+    - name: Verify SNMP responds on localhost
+      ansible.builtin.command: snmpwalk -v2c -c {{ snmp_community }} localhost 1.3.6.1.2.1.1.1.0
+      register: snmpcheck
+      changed_when: false
+      failed_when: snmpcheck.rc != 0
+
+  handlers:
+    - name: restart snmpd
       ansible.builtin.service:
         name: snmpd
         state: restarted
         enabled: yes
 
-  handlers:
     - name: system upgrade performed
-      debug:
-        msg: "All packages have been upgraded."
+      ansible.builtin.debug:
+        msg: "APT upgrade completed."
