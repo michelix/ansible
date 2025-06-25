@@ -21,6 +21,11 @@
         name: snmpd
         state: present
 
+    - name: Install snmp client utilities
+      ansible.builtin.apt:
+        name: snmp
+        state: present
+  
     # ── Deploy a complete, clean configuration ────────────────────────────────
     - name: Deploy snmpd.conf
       ansible.builtin.copy:
