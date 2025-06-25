@@ -1,0 +1,49 @@
+---
+- hosts: all
+  become: yes
+
+  tasks:
+    - name: Update apt cache and upgrade all packages
+      ansible.builtin.apt:
+        upgrade: 'dist'
+        update_cache: yes
+        cache_valid_time: 3600
+      notify: system upgrade performed
+
+    - name: Install snmpd package
+      ansible.builtin.apt:
+        name: snmpd
+        state: present
+
+    - name: Configure snmpd to listen on all interfaces
+      ansible.builtin.lineinfile:
+        path: /etc/snmp/snmpd.conf
+        regexp: '^agentAddress'
+        line: 'agentAddress udp:161'
+        state: present
+        backup: yes
+
+    - name: Set community string to public (read-only)
+      ansible.builtin.lineinfile:
+        path: /etc/snmp/snmpd.conf
+        regexp: '^com2sec'
+        line: 'com2sec readonly default public'
+        state: present
+
+    - name: Allow snmpd to start with default args
+      ansible.builtin.lineinfile:
+        path: /etc/default/snmpd
+        regexp: '^SNMPDOPTS='
+        line: 'SNMPDOPTS="-LS0-6d -f"'
+        state: present
+
+    - name: Restart snmpd
+      ansible.builtin.service:
+        name: snmpd
+        state: restarted
+        enabled: yes
+
+  handlers:
+    - name: system upgrade performed
+      debug:
+        msg: "All packages have been upgraded."
